@@ -323,7 +323,7 @@ class Yahoo(Source):
     def fetch(self, http, inst, tf, limit):
         interval, rng = TF_YAHOO[tf]
         with Yahoo._lock:                       # Yahoo'yu nazik kullan
-            wait = 0.35 - (time.time() - Yahoo._last)
+            wait = 1.5 - (time.time() - Yahoo._last)
             if wait > 0:
                 time.sleep(wait)
             Yahoo._last = time.time()
@@ -386,6 +386,7 @@ class DataHub:
         self.cache: dict[tuple, tuple[float, Bars]] = {}
         self.lock = threading.Lock()
         self.errors: list[tuple[float, str, str]] = []
+        self.cool: dict[str, float] = {}               # hız sınırına takılan kaynak → ne zamana kadar dinlendir
 
     # ── kaynak sırası ──
     def _chain(self, inst: Instrument) -> list[str]:
@@ -393,6 +394,10 @@ class DataHub:
         names = [n for n in names if n in self.sources]
         if inst.is_fx and "twelvedata" in names and not self.env.twelve_key:
             names.remove("twelvedata")
+        now = time.time()
+        rested = [n for n in names if self.cool.get(n, 0) <= now]
+        if rested:                                     # hepsi dinleniyorsa yine de hepsini dene
+            names = rested
         r = self.resolved.get(inst.symbol)
         if r in names:
             names = [r] + [n for n in names if n != r]
@@ -429,8 +434,11 @@ class DataHub:
                 return b
             except RateLimited as e:
                 errs.append(f"{name}: hız sınırı")
+                self.cool[name] = time.time() + max(300.0, min(e.retry_after, 900.0))
+                if idx + 1 < len(chain):                 # sıradaki kaynağa geç
+                    continue
                 time.sleep(min(e.retry_after, 15))
-                break                                    # kaynak değiştirme, sonra tekrar dene
+                break
             except (SymbolNotFound, Blocked) as e:
                 errs.append(f"{name}: {e}")
                 continue
