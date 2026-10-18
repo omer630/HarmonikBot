@@ -228,11 +228,12 @@ class Scanner:
         log.warning("tarama hatası %s %s: %s", sym, tf, str(e)[:200])
         self.db.set_scan_state(sym, tf, None, err=str(e)[:200])
         self.sym_fails[sym] = self.sym_fails.get(sym, 0) + 1
-        if self.sym_fails[sym] >= 6 and sym not in self.warned_sym:
+        limit = 40 if "hız sınırı" in str(e) else 6          # geçici hız sınırında kullanıcıyı hemen rahatsız etme
+        if self.sym_fails[sym] >= limit and sym not in self.warned_sym:
             self.warned_sym.add(sym)
             self.notifier.warn(f"⚠️ <b>{sym}</b> için veri alınamıyor ({str(e)[:160]}).\nListeden çıkarmak için: /cikar {sym}")
         self.fail_streak[market] = self.fail_streak.get(market, 0) + 1
-        if self.fail_streak[market] >= 12 and self.now() - self.last_warn.get(market, 0) > 3600:
+        if self.fail_streak[market] >= (80 if "hız sınırı" in str(e) else 12) and self.now() - self.last_warn.get(market, 0) > 3600:
             self.last_warn[market] = self.now()
             self.notifier.warn(f"⚠️ <b>{market}</b> veri kaynağı art arda hata veriyor: {str(e)[:200]}")
 
