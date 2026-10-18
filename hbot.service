@@ -1,0 +1,16 @@
+# /etc/systemd/system/hbot.service  — sonra:  sudo systemctl daemon-reload && sudo systemctl enable --now hbot
+[Unit]
+Description=HaP Harmonik Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=hbot
+WorkingDirectory=/opt/harmonic_bot
+ExecStart=/opt/harmonic_bot/.venv/bin/python main.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
