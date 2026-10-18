@@ -1,0 +1,19 @@
+name: Zamanlayıcıyı canlı tut
+
+# GitHub, 60 gün hareketsiz kalan public depolarda zamanlanmış işleri kapatır.
+# Bu iş haftada bir ana iş akışını yeniden etkinleştirerek bunu önler.
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable bot.yml --repo "$GITHUB_REPOSITORY"
