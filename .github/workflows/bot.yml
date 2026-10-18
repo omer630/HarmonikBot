@@ -2,7 +2,7 @@ name: Harmonik Bot
 
 on:
   schedule:
-    - cron: "*/5 * * * *"      # her 5 dk'da bir tur başlatır (GitHub gecikebilir)
+    - cron: "*/15 * * * *"     # sırada hep bir sonraki tur beklesin (öncekiyle aynı anda çalışmaz)
   workflow_dispatch:           # Actions sekmesinden elle başlatmak için
 
 # Aynı anda tek tur çalışsın (Telegram getUpdates çakışmasın); yenisi sıraya girer
@@ -17,7 +17,7 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 350        # GitHub üst sınırı 360 dk
     steps:
       - uses: actions/checkout@v4
 
@@ -45,7 +45,7 @@ jobs:
           TZ: Europe/Istanbul
           DATA_DIR: data
           RUN_ONCE: "1"
-          RUN_SECONDS: "270"
+          RUN_SECONDS: "20400"        # 5 saat 40 dk: sürekli dinleme, sonra temiz kapanış + kayıt
         run: python main.py --once
 
       - name: Veritabanını kaydet
