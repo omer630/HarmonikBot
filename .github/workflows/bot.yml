@@ -1,0 +1,64 @@
+name: Harmonik Bot
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"      # her 5 dk'da bir tur başlatır (GitHub gecikebilir)
+  workflow_dispatch:           # Actions sekmesinden elle başlatmak için
+
+# Aynı anda tek tur çalışsın (Telegram getUpdates çakışmasın); yenisi sıraya girer
+concurrency:
+  group: hbot
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write               # eski önbellekleri temizlemek için
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Veritabanını geri yükle
+        uses: actions/cache/restore@v4
+        with:
+          path: data/harmonic.db
+          key: hbot-db-none
+          restore-keys: hbot-db-
+
+      - name: Tur çalıştır (tara + komutları dinle)
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          CRYPTO_SOURCES: binance_spot,gate_spot,bybit_spot
+          FX_SOURCES: yahoo,twelvedata
+          TZ: Europe/Istanbul
+          DATA_DIR: data
+          RUN_ONCE: "1"
+          RUN_SECONDS: "270"
+        run: python main.py --once
+
+      - name: Veritabanını kaydet
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/harmonic.db
+          key: hbot-db-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Eski önbellekleri temizle
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh cache list --key hbot-db- --sort created_at --order desc --limit 100 --json id --jq '.[3:][].id' \
+            | xargs -r -n1 gh cache delete || true
